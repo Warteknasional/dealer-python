@@ -84,8 +84,13 @@ class Ui_Dialog(object):
 
         # --- TOMBOL UPDATE ---
         self.pushButton = QtWidgets.QPushButton(Dialog)
-        self.pushButton.setGeometry(QtCore.QRect(120, 250, 160, 35))
-        self.pushButton.setText("Simpan Perubahan")
+        self.pushButton.setGeometry(QtCore.QRect(220, 250, 100, 35))
+        self.pushButton.setText("Simpan ")
+
+        #  TOMBOL BATAL
+        self.btnBatal = QtWidgets.QPushButton(Dialog)
+        self.btnBatal.setGeometry(QtCore.QRect(120, 250, 100, 35))
+        self.btnBatal.setText("Batal")
         
         QtCore.QMetaObject.connectSlotsByName(Dialog)
 

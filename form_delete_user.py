@@ -70,11 +70,15 @@ class Ui_Dialog(object):
         
         # Tombol Delete
         self.pushButton = QtWidgets.QPushButton(Dialog)
-        self.pushButton.setGeometry(QtCore.QRect(160, 250, 80, 30))
+        self.pushButton.setGeometry(QtCore.QRect(220, 250, 100, 35))
         self.pushButton.setObjectName("pushButton")
         
-        # Style Tombol Delete biar merah (Opsional, biar kelihatan bahaya)
-        self.pushButton.setStyleSheet("background-color: #ffcccc; color: red; font-weight: bold;")
+
+
+        #  TOMBOL BATAL
+        self.btnBatal = QtWidgets.QPushButton(Dialog)
+        self.btnBatal.setGeometry(QtCore.QRect(100, 250, 100, 35))
+        self.btnBatal.setText("Batal")
 
         self.retranslateUi(Dialog)
         QtCore.QMetaObject.connectSlotsByName(Dialog)
@@ -89,7 +93,7 @@ class Ui_Dialog(object):
         self.label_3.setText(_translate("Dialog", "Username: -"))
         self.label_6.setText(_translate("Dialog", "Password: -"))
         self.label_8.setText(_translate("Dialog", "Posisi: -"))
-        self.pushButton.setText(_translate("Dialog", "HAPUS"))
+        self.pushButton.setText(_translate("Dialog", "Hapus"))
 
 # =================================================================
 # BAGIAN LOGIKA (CONTROLLER)
