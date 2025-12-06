@@ -1,17 +1,27 @@
-import mysql.connector
+# --- JANGAN ADA IMPORT APA-APA DI SINI ---
+# (Biarkan kosong atau komentar saja)
 
 def koneksi():
     try:
+        # --- Import HANYA dilakukan di sini ---
+        import mysql.connector 
+        
         mydb = mysql.connector.connect(
             host="localhost",
             user="root",
             password="",
             database="showroom"
         )
-        cursor = mydb.cursor()
-        print("✅ Koneksi ke database berhasil.")
-        return mydb, cursor
-    except mysql.connector.Error as err:
-        print(f"❌ Gagal terkoneksi ke database: {err}")
+        
+        if mydb.is_connected():
+            print("✅ Koneksi Database Berhasil.")
+            return mydb, mydb.cursor()
+        else:
+            return None, None
+       
+    except Exception as err:
+        print(f"❌ Error Koneksi: {err}")
         return None, None
 
+# Hapus pemanggilan koneksi() di bawah kalau mau dipakai di form
+# koneksi()

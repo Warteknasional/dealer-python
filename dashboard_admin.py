@@ -9,7 +9,7 @@
 
 
 # -*- coding: utf-8 -*-
-
+import mysql.connector
 import sys
 from form_insert_user import InsertUserForm
 from form_edit_user import EditUserForm
