@@ -110,3 +110,10 @@ class User:
         sql = "SELECT id, name, username, posisi FROM user"
         self.__cursor.execute(sql)
         return self.__cursor.fetchall()
+    
+    def authenticate(self, username, password):
+        if not self.__cursor: return None
+        sql = "SELECT id, name, username, posisi FROM user WHERE username=%s AND password=%s"
+        self.__cursor.execute(sql, (username, password))
+        return self.__cursor.fetchone()
+    
