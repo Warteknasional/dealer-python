@@ -5,10 +5,11 @@ from connection import koneksi
 # =========================================================
 class Mobil:
     def __init__(self, merk: str, harga: int, stok: int):
-        self.__merk = merk
-        self.__harga = harga
-        self.__stok = stok
-        self.__id = None
+        # Langsung public attribute (tanpa underscore ganda)
+        self.merk = merk
+        self.harga = harga
+        self.stok = stok
+        self.id = None
         
         try:
             self.mydb, self.mycursor = koneksi()
@@ -16,37 +17,15 @@ class Mobil:
             self.mydb = None
             self.mycursor = None
 
-    # ======== GETTER & SETTER ========
-    @property
-    def merk(self): return self.__merk
-    @merk.setter
-    def merk(self, value): self.__merk = value
-
-    @property
-    def harga(self): return self.__harga
-    @harga.setter
-    def harga(self, value): 
-        if value >= 0: self.__harga = value
-
-    @property
-    def stok(self): return self.__stok
-    @stok.setter
-    def stok(self, value): 
-        if value >= 0: self.__stok = value
-
-    @property
-    def id(self): return self.__id
-    @id.setter 
-    def id(self, value): self.__id = value
-
     # ========== METHOD DATABASE ==========
     def simpan(self):
-        sql = "INSERT INTO mobil (merk, harga, stok) VALUES (%s, %s, %s)"
-        val = (self.__merk, self.__harga, self.__stok)
+        # Default status saat simpan adalah 'aktif'
+        sql = "INSERT INTO mobil (merk, harga, stok, status) VALUES (%s, %s, %s, 'aktif')"
+        val = (self.merk, self.harga, self.stok)
         self.mycursor.execute(sql, val)
         self.mydb.commit()
-        self.__id = self.mycursor.lastrowid
-        print(f"✅ Mobil Umum {self.__merk} berhasil disimpan (ID: {self.__id}).")
+        self.id = self.mycursor.lastrowid
+        print(f"✅ Mobil Umum {self.merk} berhasil disimpan (ID: {self.id}).")
 
     def update_by_id(self, uid):
         sql = "UPDATE mobil SET merk=%s, harga=%s, stok=%s WHERE id=%s"
@@ -58,7 +37,8 @@ class Mobil:
     @staticmethod
     def get_by_id(uid):
         mydb, mycursor = koneksi()
-        sql = "SELECT id, merk, harga, stok FROM mobil WHERE id=%s"
+        # Filter hanya yang aktif
+        sql = "SELECT id, merk, harga, stok FROM mobil WHERE id=%s AND status='aktif'"
         mycursor.execute(sql, (uid,))
         res = mycursor.fetchone()
         if res:
@@ -69,22 +49,29 @@ class Mobil:
 
     @staticmethod
     def hapus_by_id(uid):
+        """
+        SOFT DELETE:
+        Tidak menghapus baris data (agar tidak error di tabel penjualan),
+        tapi hanya mengubah status menjadi 'nonaktif'.
+        """
         mydb, mycursor = koneksi()
-        sql = "DELETE FROM mobil WHERE id=%s"
+        sql = "UPDATE mobil SET status = 'nonaktif' WHERE id=%s"
         mycursor.execute(sql, (uid,))
         mydb.commit()
+        print(f"⚠️ Mobil ID {uid} telah dinonaktifkan (Soft Delete).")
         return True
 
     # === FITUR VIEW ALL (JOIN 3 TABEL) ===
     @staticmethod
     def get_all_mobil():
         mydb, mycursor = koneksi()
-        # Teknik LEFT JOIN: Menggabungkan 3 tabel sekaligus
+        # Tambahkan WHERE m.status = 'aktif' agar mobil yang dihapus tidak muncul
         sql = """
             SELECT m.id, m.merk, m.harga, m.stok, s.kecepatan, l.kapasitas
             FROM mobil m
             LEFT JOIN mobil_sport s ON m.id = s.mobil_id
             LEFT JOIN mobil_listrik l ON m.id = l.mobil_id
+            WHERE m.status = 'aktif'
             ORDER BY m.id ASC
         """
         mycursor.execute(sql)
@@ -96,18 +83,14 @@ class Mobil:
 class Mobil_Listrik(Mobil):
     def __init__(self, merk: str, harga: int, stok: int, kapasitas: int):
         super().__init__(merk, harga, stok)
-        self.__kapasitas = kapasitas
-
-    @property
-    def kapasitas(self): return self.__kapasitas
-    @kapasitas.setter
-    def kapasitas(self, value):
-        if value >= 0: self.__kapasitas = value
+        self.kapasitas = kapasitas  # Langsung public
 
     def simpan(self):
+        # Simpan ke tabel induk dulu (otomatis status='aktif')
         super().simpan() 
+        # Simpan ke tabel anak
         sql = "INSERT INTO mobil_listrik (mobil_id, kapasitas) VALUES (%s, %s)"
-        val = (self.id, self.__kapasitas)
+        val = (self.id, self.kapasitas)
         self.mycursor.execute(sql, val)
         self.mydb.commit()
         print(f"🔋 Mobil Listrik {self.merk} berhasil disimpan.")
@@ -118,7 +101,7 @@ class Mobil_Listrik(Mobil):
         val1 = (self.merk, self.harga, self.stok, uid)
         self.mycursor.execute(sql1, val1)
         
-        # Update Anak (FIXED: Tabel mobil_listrik)
+        # Update Anak
         sql2 = "UPDATE mobil_listrik SET kapasitas=%s WHERE mobil_id=%s"
         val2 = (self.kapasitas, uid)
         self.mycursor.execute(sql2, val2)
@@ -129,12 +112,11 @@ class Mobil_Listrik(Mobil):
     @staticmethod
     def get_by_id(uid):
         mydb, mycursor = koneksi()
-        # FIXED: Join mobil_listrik
         sql = """
             SELECT m.id, m.merk, m.harga, m.stok, l.kapasitas 
             FROM mobil m 
             JOIN mobil_listrik l ON m.id = l.mobil_id 
-            WHERE m.id = %s
+            WHERE m.id = %s AND m.status='aktif'
         """
         mycursor.execute(sql, (uid,))
         res = mycursor.fetchone()
@@ -144,17 +126,8 @@ class Mobil_Listrik(Mobil):
             return obj
         return None
 
-    @staticmethod
-    def hapus_by_id(uid):
-        mydb, mycursor = koneksi()
-        # Hapus anak dulu (FIXED: Tabel mobil_listrik)
-        sql1 = "DELETE FROM mobil_listrik WHERE mobil_id=%s"
-        mycursor.execute(sql1, (uid,))
-        # Hapus induk
-        sql2 = "DELETE FROM mobil WHERE id=%s"
-        mycursor.execute(sql2, (uid,))
-        mydb.commit()
-        return True
+    # Tidak perlu def hapus_by_id() lagi disini.
+    # Karena kita pakai Soft Delete di Parent, otomatis anak ikut "hilang" dari view.
 
 # =========================================================
 # SUBCLASS: MOBIL SPORT
@@ -162,18 +135,12 @@ class Mobil_Listrik(Mobil):
 class Mobil_Sport(Mobil):
     def __init__(self, merk: str, harga: int, stok: int, kecepatan: int):
         super().__init__(merk, harga, stok)
-        self.__kecepatan = kecepatan
-
-    @property
-    def kecepatan(self): return self.__kecepatan
-    @kecepatan.setter
-    def kecepatan(self, value):
-        if value >= 0: self.__kecepatan = value
+        self.kecepatan = kecepatan # Langsung public
 
     def simpan(self):
         super().simpan() 
         sql = "INSERT INTO mobil_sport (mobil_id, kecepatan) VALUES (%s, %s)"
-        val = (self.id, self.__kecepatan)
+        val = (self.id, self.kecepatan)
         self.mycursor.execute(sql, val)
         self.mydb.commit()
         print(f"🏎️ Mobil Sport {self.merk} berhasil disimpan.")
@@ -184,7 +151,7 @@ class Mobil_Sport(Mobil):
         val1 = (self.merk, self.harga, self.stok, uid)
         self.mycursor.execute(sql1, val1)
         
-        # Update Anak (FIXED: Tabel mobil_sport)
+        # Update Anak
         sql2 = "UPDATE mobil_sport SET kecepatan=%s WHERE mobil_id=%s"
         val2 = (self.kecepatan, uid)
         self.mycursor.execute(sql2, val2)
@@ -195,12 +162,11 @@ class Mobil_Sport(Mobil):
     @staticmethod
     def get_by_id(uid):
         mydb, mycursor = koneksi()
-        # FIXED: Join mobil_sport
         sql = """
             SELECT m.id, m.merk, m.harga, m.stok, s.kecepatan 
             FROM mobil m 
             JOIN mobil_sport s ON m.id = s.mobil_id 
-            WHERE m.id = %s
+            WHERE m.id = %s AND m.status='aktif'
         """
         mycursor.execute(sql, (uid,))
         res = mycursor.fetchone()
@@ -209,15 +175,3 @@ class Mobil_Sport(Mobil):
             obj.id = res[0]
             return obj
         return None
-
-    @staticmethod
-    def hapus_by_id(uid):
-        mydb, mycursor = koneksi()
-        # Hapus anak dulu (FIXED: Tabel mobil_sport)
-        sql1 = "DELETE FROM mobil_sport WHERE mobil_id=%s"
-        mycursor.execute(sql1, (uid,))
-        # Hapus induk
-        sql2 = "DELETE FROM mobil WHERE id=%s"
-        mycursor.execute(sql2, (uid,))
-        mydb.commit()
-        return True
