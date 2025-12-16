@@ -15,59 +15,69 @@ from form_insert_user import InsertUserForm
 from form_edit_user import EditUserForm
 from form_delete_user import DeleteUserForm
 from form_view_user import ViewUserForm
+from riwayat_penjualan import RiwayatPenjualan
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QMessageBox
 
-# =================================================================
-# IMPORT FORM LAIN (Pastikan file-file ini ada di folder yang sama)
-# =================================================================
-
-
-# =================================================================
-# 1. BAGIAN TAMPILAN UI (JANGAN DIUBAH - SESUAI DESAIN KAMU)
-# =================================================================
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName("Dialog")
-        Dialog.resize(800, 600)
+        Dialog.resize(850, 600) # Sedikit diperlebar
         
         # Label Judul
         self.label = QtWidgets.QLabel(Dialog)
-        self.label.setGeometry(QtCore.QRect(150, 50, 500, 50))
+        self.label.setGeometry(QtCore.QRect(0, 40, 850, 50)) # Full width center
         font = QtGui.QFont()
-        font.setPointSize(20)
+        font.setPointSize(22)
         font.setBold(True)
-        font.setWeight(75)
         self.label.setFont(font)
         self.label.setAlignment(QtCore.Qt.AlignCenter)
         self.label.setObjectName("label")
+        self.label.setStyleSheet("color: #2c3e50;")
         
+        # --- GROUP: KELOLA USER (KIRI) ---
+        self.groupUser = QtWidgets.QGroupBox(Dialog)
+        self.groupUser.setGeometry(QtCore.QRect(50, 120, 350, 400))
+        self.groupUser.setTitle("Kelola Pengguna")
+        self.groupUser.setStyleSheet("QGroupBox { font-weight: bold; border: 1px solid #ccc; border-radius: 8px; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px; }")
+
         # Tombol Insert
-        self.pushButton = QtWidgets.QPushButton(Dialog)
-        self.pushButton.setGeometry(QtCore.QRect(100, 150, 300, 50))
-        self.pushButton.setObjectName("pushButton")
+        self.btn_insert = QtWidgets.QPushButton(self.groupUser)
+        self.btn_insert.setGeometry(QtCore.QRect(25, 40, 300, 45))
+        self.btn_insert.setObjectName("btn_insert")
         
         # Tombol Update
-        self.pushButton_4 = QtWidgets.QPushButton(Dialog)
-        self.pushButton_4.setGeometry(QtCore.QRect(100, 220, 300, 50))
-        self.pushButton_4.setObjectName("pushButton_4")
+        self.btn_update = QtWidgets.QPushButton(self.groupUser)
+        self.btn_update.setGeometry(QtCore.QRect(25, 100, 300, 45))
+        self.btn_update.setObjectName("btn_update")
         
         # Tombol Delete
-        self.pushButton_3 = QtWidgets.QPushButton(Dialog)
-        self.pushButton_3.setGeometry(QtCore.QRect(100, 290, 300, 50))
-        self.pushButton_3.setObjectName("pushButton_3")
+        self.btn_delete = QtWidgets.QPushButton(self.groupUser)
+        self.btn_delete.setGeometry(QtCore.QRect(25, 160, 300, 45))
+        self.btn_delete.setObjectName("btn_delete")
         
-        # Tombol View (Lihat)
-        self.pushButton_2 = QtWidgets.QPushButton(Dialog)
-        self.pushButton_2.setGeometry(QtCore.QRect(100, 360, 300, 50))
-        self.pushButton_2.setObjectName("pushButton_2")
+        # Tombol View
+        self.btn_view = QtWidgets.QPushButton(self.groupUser)
+        self.btn_view.setGeometry(QtCore.QRect(25, 220, 300, 45))
+        self.btn_view.setObjectName("btn_view")
+
+        # --- GROUP: LAPORAN (KANAN ATAS) ---
+        self.groupLaporan = QtWidgets.QGroupBox(Dialog)
+        self.groupLaporan.setGeometry(QtCore.QRect(450, 120, 350, 150))
+        self.groupLaporan.setTitle("Laporan & Transaksi")
+        self.groupLaporan.setStyleSheet("QGroupBox { font-weight: bold; border: 1px solid #ccc; border-radius: 8px; margin-top: 10px; }")
+
+        # Tombol Riwayat Penjualan (BARU)
+        self.btn_riwayat = QtWidgets.QPushButton(self.groupLaporan)
+        self.btn_riwayat.setGeometry(QtCore.QRect(25, 40, 300, 80)) # Tombol Besar
+        self.btn_riwayat.setObjectName("btn_riwayat")
+        self.btn_riwayat.setStyleSheet("background-color: #d1ecf1; color: #0c5460; font-weight: bold; font-size: 14px; border-radius: 5px;")
         
-        # Tombol Logout
-        self.pushButton_5 = QtWidgets.QPushButton(Dialog)
-        self.pushButton_5.setGeometry(QtCore.QRect(500, 220, 200, 150))
-        self.pushButton_5.setObjectName("pushButton_5")
-        # Kasih warna merah biar beda
-        self.pushButton_5.setStyleSheet("background-color: #ffcccc; color: red; font-weight: bold; font-size: 14px;")
+        # --- TOMBOL LOGOUT (KANAN BAWAH) ---
+        self.btn_logout = QtWidgets.QPushButton(Dialog)
+        self.btn_logout.setGeometry(QtCore.QRect(450, 350, 350, 100))
+        self.btn_logout.setObjectName("btn_logout")
+        self.btn_logout.setStyleSheet("background-color: #f8d7da; color: #721c24; font-weight: bold; font-size: 16px; border-radius: 8px;")
 
         self.retranslateUi(Dialog)
         QtCore.QMetaObject.connectSlotsByName(Dialog)
@@ -76,65 +86,84 @@ class Ui_Dialog(object):
         _translate = QtCore.QCoreApplication.translate
         Dialog.setWindowTitle(_translate("Dialog", "Dashboard Admin"))
         self.label.setText(_translate("Dialog", "DASHBOARD ADMIN"))
-        self.pushButton.setText(_translate("Dialog", "Insert Data User"))
-        self.pushButton_4.setText(_translate("Dialog", "Update Data User"))
-        self.pushButton_3.setText(_translate("Dialog", "Delete Data User"))
-        self.pushButton_2.setText(_translate("Dialog", "Lihat Data User"))
-        self.pushButton_5.setText(_translate("Dialog", "Logout"))
+        
+        self.btn_insert.setText(_translate("Dialog", "Insert Data User"))
+        self.btn_update.setText(_translate("Dialog", "Update Data User"))
+        self.btn_delete.setText(_translate("Dialog", "Delete Data User"))
+        self.btn_view.setText(_translate("Dialog", "Lihat Data User"))
+        
+        self.btn_riwayat.setText(_translate("Dialog", "Riwayat Penjualan\n(Cek Omset & Export Excel)"))
+        
+        self.btn_logout.setText(_translate("Dialog", "LOGOUT"))
 
 # =================================================================
-# 2. BAGIAN LOGIKA (CONTROLLER) - DIGABUNG DI SINI
+# 2. BAGIAN LOGIKA (CONTROLLER)
 # =================================================================
 class DashboardAdminForm(QtWidgets.QDialog):
     def __init__(self):
         super().__init__()
-        # Panggil UI
         self.ui = Ui_Dialog()
         self.ui.setupUi(self)
         
-        # Hubungkan Tombol ke Fungsi
-        self.ui.pushButton.clicked.connect(self.buka_insert)   # Insert
-        self.ui.pushButton_4.clicked.connect(self.buka_update) # Update
-        self.ui.pushButton_3.clicked.connect(self.buka_delete) # Delete
-        self.ui.pushButton_2.clicked.connect(self.buka_view)   # View
-        self.ui.pushButton_5.clicked.connect(self.aksi_logout) # Logout
+        # Hubungkan Tombol User
+        self.ui.btn_insert.clicked.connect(self.buka_insert)
+        self.ui.btn_update.clicked.connect(self.buka_update)
+        self.ui.btn_delete.clicked.connect(self.buka_delete)
+        self.ui.btn_view.clicked.connect(self.buka_view)
+        
+        # Hubungkan Tombol Laporan (BARU)
+        self.ui.btn_riwayat.clicked.connect(self.buka_riwayat)
+        
+        # Hubungkan Logout
+        self.ui.btn_logout.clicked.connect(self.aksi_logout)
 
+    # --- AREA FUNGSI MEMBUKA FORM ---
     def buka_insert(self):
         try:
-            self.form_insert = InsertUserForm()
-            self.form_insert.exec_()
-        except NameError:
-            QMessageBox.critical(self, "Error", "Form Insert belum diimport/dibuat.")
+            self.form = InsertUserForm()
+            self.form.exec_()
+        except NameError: self.show_error("InsertUserForm")
 
     def buka_update(self):
         try:
-            self.form_update = EditUserForm()
-            self.form_update.exec_()
-        except NameError:
-            QMessageBox.critical(self, "Error", "Form Edit belum diimport/dibuat.")
+            self.form = EditUserForm()
+            self.form.exec_()
+        except NameError: self.show_error("EditUserForm")
 
     def buka_delete(self):
         try:
-            self.form_delete = DeleteUserForm()
-            self.form_delete.exec_()
-        except NameError:
-            QMessageBox.critical(self, "Error", "Form Delete belum diimport/dibuat.")
+            self.form = DeleteUserForm()
+            self.form.exec_()
+        except NameError: self.show_error("DeleteUserForm")
 
     def buka_view(self):
         try:
-            self.form_view = ViewUserForm()
-            self.form_view.exec_()
-        except NameError:
-            QMessageBox.critical(self, "Error", "Form View belum diimport/dibuat.")
+            self.form = ViewUserForm()
+            self.form.exec_()
+        except NameError: self.show_error("ViewUserForm")
+
+    # FUNGSI BARU: BUKA RIWAYAT
+    def buka_riwayat(self):
+        try:
+            # Kita pakai self.window_riwayat agar window tidak langsung tertutup (Garbage Collection)
+            # karena RiwayatPenjualan biasanya QWidget, bukan QDialog.
+            self.window_riwayat = RiwayatPenjualan()
+            self.window_riwayat.show() 
+        except NameError: 
+            self.show_error("RiwayatPenjualan")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Gagal membuka riwayat: {e}")
 
     def aksi_logout(self):
         tanya = QMessageBox.question(
-            self, "Konfirmasi", "Yakin ingin Logout?",
+            self, "Konfirmasi", "Yakin ingin keluar dari sistem?",
             QMessageBox.Yes | QMessageBox.No
         )
         if tanya == QMessageBox.Yes:
             self.close()
-            # Di sini nanti bisa tambahkan kode untuk kembali ke Login Window
+
+    def show_error(self, form_name):
+        QMessageBox.critical(self, "Error", f"File/Class '{form_name}' tidak ditemukan.\nPastikan file sudah dibuat dan diimport.")
 
 # =================================================================
 # 3. JALANKAN APLIKASI

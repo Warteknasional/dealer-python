@@ -1,168 +1,280 @@
 # -*- coding: utf-8 -*-
 
-# --- PENTING: IMPORT DRIVER DI PALING ATAS (ANTI-CRASH) ---
 import mysql.connector 
-
 import sys
+import pandas as pd  # <--- WAJIB INSTALL: pip install pandas openpyxl
 from PyQt5 import QtCore, QtGui, QtWidgets
-from penjualan import Penjualan  # <--- Import Logic Database
+from PyQt5.QtCore import QDate 
+from penjualan import Penjualan 
 
 class RiwayatPenjualan(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.setWindowTitle("Riwayat Penjualan")
-        self.resize(800, 520) # Saya perlebar sedikit biar muat
-        self.setStyleSheet("background-color: #ffffff;")
+        self.setWindowTitle("Laporan Penjualan & Export Excel")
+        self.resize(950, 600)
+        self.setStyleSheet("background-color: #ffffff; font-family: Segoe UI;")
 
         main_layout = QtWidgets.QVBoxLayout(self)
+        main_layout.setSpacing(15)
+        main_layout.setContentsMargins(20, 20, 20, 20)
 
         # ============================
-        # TITLE + OMSET
+        # 1. HEADER (JUDUL & OMSET)
         # ============================
-        top_layout = QtWidgets.QHBoxLayout()
+        top_frame = QtWidgets.QFrame()
+        top_frame.setStyleSheet("background-color: #f8f9fa; border-radius: 8px; border: 1px solid #ddd;")
+        top_layout = QtWidgets.QHBoxLayout(top_frame)
 
-        title = QtWidgets.QLabel("Riwayat Penjualan")
-        title.setStyleSheet("font-size: 17px; font-weight: bold; color: #333;")
-        top_layout.addWidget(title)
+        title_layout = QtWidgets.QVBoxLayout()
+        lbl_title = QtWidgets.QLabel("Laporan Penjualan")
+        lbl_title.setStyleSheet("font-size: 18px; font-weight: bold; color: #2c3e50; border: none;")
+        lbl_subtitle = QtWidgets.QLabel("Filter tanggal lalu export data ke Excel")
+        lbl_subtitle.setStyleSheet("font-size: 12px; color: #7f8c8d; border: none;")
+        title_layout.addWidget(lbl_title)
+        title_layout.addWidget(lbl_subtitle)
 
+        top_layout.addLayout(title_layout)
         top_layout.addStretch()
 
-        self.label_omset = QtWidgets.QLabel("Omset: Rp 0")
+        # Label Omset Besar
+        self.label_omset = QtWidgets.QLabel("Rp 0")
+        self.label_omset.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         self.label_omset.setStyleSheet("""
-            font-size: 13px; color: #555; padding: 4px 8px;
-            border: 1px solid #e0e0e0; border-radius: 4px;
+            font-size: 24px; font-weight: bold; color: #27ae60; 
+            border: none; background: transparent;
         """)
+        top_layout.addWidget(QtWidgets.QLabel("Total Omset: "))
         top_layout.addWidget(self.label_omset)
 
-        main_layout.addLayout(top_layout)
+        main_layout.addWidget(top_frame)
 
         # ============================
-        # SEARCH BAR
+        # 2. FILTER AREA
         # ============================
+        filter_group = QtWidgets.QGroupBox("Filter Data")
+        filter_layout = QtWidgets.QHBoxLayout(filter_group)
+        filter_layout.setSpacing(10)
+
+        # -- Kalender Mulai --
+        filter_layout.addWidget(QtWidgets.QLabel("Dari:"))
+        self.date_start = QtWidgets.QDateEdit()
+        self.date_start.setCalendarPopup(True) 
+        self.date_start.setDisplayFormat("yyyy-MM-dd")
+        self.date_start.setDate(QDate.currentDate().addDays(-7)) 
+        self.date_start.setFixedWidth(120)
+        self.date_start.dateChanged.connect(self.filter_data) 
+        filter_layout.addWidget(self.date_start)
+
+        # -- Kalender Sampai --
+        filter_layout.addWidget(QtWidgets.QLabel("Sampai:"))
+        self.date_end = QtWidgets.QDateEdit()
+        self.date_end.setCalendarPopup(True)
+        self.date_end.setDisplayFormat("yyyy-MM-dd")
+        self.date_end.setDate(QDate.currentDate())
+        self.date_end.setFixedWidth(120)
+        self.date_end.dateChanged.connect(self.filter_data)
+        filter_layout.addWidget(self.date_end)
+
+        # -- Garis Pemisah --
+        line = QtWidgets.QFrame()
+        line.setFrameShape(QtWidgets.QFrame.VLine)
+        line.setFrameShadow(QtWidgets.QFrame.Sunken)
+        filter_layout.addWidget(line)
+
+        # -- Search Nama --
         self.input_search = QtWidgets.QLineEdit()
-        self.input_search.setPlaceholderText("Cari tanggal (YYYY-MM-DD) atau nama pembeli...")
-        self.input_search.setStyleSheet("""
-            padding: 6px; border: 1px solid #e6e6e6;
-            border-radius: 4px; font-size: 12px;
-        """)
+        self.input_search.setPlaceholderText("🔍 Cari nama pembeli...")
         self.input_search.textChanged.connect(self.filter_data)
-        main_layout.addWidget(self.input_search)
+        filter_layout.addWidget(self.input_search)
+
+        # -- Tombol Reset --
+        btn_reset = QtWidgets.QPushButton("Reset Filter")
+        btn_reset.setCursor(QtCore.Qt.PointingHandCursor)
+        btn_reset.clicked.connect(self.reset_filter)
+        filter_layout.addWidget(btn_reset)
+
+        main_layout.addWidget(filter_group)
 
         # ============================
-        # TABLE (Update Kolom)
+        # 3. TABLE
         # ============================
         self.table = QtWidgets.QTableWidget()
-        # Kolom: Tanggal, Pembeli, Mobil, Qty, Total
         self.table.setColumnCount(5) 
-        self.table.setHorizontalHeaderLabels(["Tanggal", "Pembeli", "Mobil", "Qty", "Total (Rp)"])
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.Stretch) # Nama pembeli lebar
-        self.table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.Stretch) # Nama mobil lebar
-
-        self.table.horizontalHeader().setStyleSheet("""
-            QHeaderView::section {
-                background-color: #fafafa; padding: 6px;
-                font-size: 12px; border: none; font-weight: bold;
-            }
-        """)
+        self.table.setHorizontalHeaderLabels(["Tanggal & Jam", "Pembeli", "Mobil", "Qty", "Total (Rp)"])
+        self.table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.Stretch) 
+        self.table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.Stretch) 
+        self.table.setAlternatingRowColors(True)
+        self.table.setSelectionBehavior(QtWidgets.QTableWidget.SelectRows)
+        self.table.setEditTriggers(QtWidgets.QTableWidget.NoEditTriggers)
+        
+        # Style Table
         self.table.setStyleSheet("""
             QTableWidget {
-                border: 1px solid #e6e6e6; border-radius: 4px; font-size: 12px;
+                border: 1px solid #ccc;
+                gridline-color: #f0f0f0;
+            }
+            QHeaderView::section {
+                background-color: #34495e;
+                color: white;
+                padding: 5px;
+                border: none;
             }
         """)
-        self.table.setEditTriggers(QtWidgets.QTableWidget.NoEditTriggers)
-        self.table.setSelectionBehavior(QtWidgets.QTableWidget.SelectRows)
         main_layout.addWidget(self.table)
 
         # ============================
-        # BUTTON KEMBALI / REFRESH
+        # 4. FOOTER BUTTONS
         # ============================
         btn_layout = QtWidgets.QHBoxLayout()
         
-        self.btn_refresh = QtWidgets.QPushButton("Refresh Data")
+        self.btn_refresh = QtWidgets.QPushButton("🔄 Refresh Database")
         self.btn_refresh.clicked.connect(self.load_data_db)
-        self.btn_refresh.setStyleSheet("background-color: #e0f7fa; padding: 8px; border-radius: 4px;")
+        self.btn_refresh.setFixedWidth(150)
         btn_layout.addWidget(self.btn_refresh)
         
         btn_layout.addStretch()
+
+        # --- TOMBOL EXCEL BARU ---
+        self.btn_excel = QtWidgets.QPushButton("📊 Export ke Excel")
+        self.btn_excel.setCursor(QtCore.Qt.PointingHandCursor)
+        self.btn_excel.setFixedWidth(150)
+        self.btn_excel.setStyleSheet("""
+            QPushButton {
+                background-color: #217346; 
+                color: white; 
+                font-weight: bold; 
+                border-radius: 4px; padding: 8px;
+            }
+            QPushButton:hover { background-color: #1e6b41; }
+        """)
+        self.btn_excel.clicked.connect(self.export_excel)
+        btn_layout.addWidget(self.btn_excel)
         
-        self.btn_back = QtWidgets.QPushButton("Tutup")
-        self.btn_back.setStyleSheet("background-color: #f5f5f5; padding: 8px; border-radius: 4px;")
-        self.btn_back.clicked.connect(self.close)
-        btn_layout.addWidget(self.btn_back)
+        self.btn_close = QtWidgets.QPushButton("Tutup")
+        self.btn_close.clicked.connect(self.close)
+        self.btn_close.setFixedWidth(100)
+        btn_layout.addWidget(self.btn_close)
 
         main_layout.addLayout(btn_layout)
 
-        # === LOGIC ===
+        # === LOGIC INIT ===
         self.logic = Penjualan()
-        self.data_cache = [] # Untuk menyimpan data asli dari DB
-        
-        # Load Data Pertama Kali
+        self.data_cache = [] 
+        self.current_filtered_data = [] # Menyimpan data yg sedang tampil untuk di-export
         self.load_data_db()
 
     def load_data_db(self):
-        """Mengambil data riwayat dari database lewat Logic"""
         try:
-            # Panggil fungsi ambil_riwayat dari penjualan.py
             raw_data = self.logic.ambil_riwayat()
-            # Raw data format: (tanggal, nama_pelanggan, merk_mobil, jumlah, total_harga)
             
             self.data_cache = []
-            total_omset = 0
-            
             for row in raw_data:
-                # Konversi datetime ke string
-                tgl = row[0].strftime("%Y-%m-%d %H:%M") if row[0] else "-"
-                
-                # Masukkan ke cache
+                tgl_obj = row[0]
+                tgl_str = tgl_obj.strftime("%Y-%m-%d") if tgl_obj else "1900-01-01"
+                tgl_display = tgl_obj.strftime("%d-%m-%Y %H:%M") if tgl_obj else "-"
+
                 self.data_cache.append({
-                    "tanggal": tgl,
+                    "date_obj": tgl_str,
+                    "display_date": tgl_display,
                     "pembeli": row[1],
                     "mobil": row[2],
                     "qty": row[3],
                     "total": row[4]
                 })
-                
-                total_omset += row[4]
             
-            # Update Label Omset
-            self.label_omset.setText(f"Omset: Rp {total_omset:,}")
-            
-            # Tampilkan ke tabel
-            self.tampilkan_tabel(self.data_cache)
+            self.filter_data()
             
         except Exception as e:
-            print(f"Gagal load riwayat: {e}")
-            QtWidgets.QMessageBox.warning(self, "Error", f"Gagal memuat data: {e}")
+            print(f"Error Load: {e}")
+            QtWidgets.QMessageBox.warning(self, "Error", "Gagal memuat data database")
+
+    def filter_data(self):
+        start_date = self.date_start.date().toString("yyyy-MM-dd")
+        end_date = self.date_end.date().toString("yyyy-MM-dd")
+        keyword = self.input_search.text().lower()
+
+        self.current_filtered_data = [] # Reset list export
+        current_omset = 0
+
+        for item in self.data_cache:
+            tgl_item = item['date_obj']
+            in_date_range = (start_date <= tgl_item <= end_date)
+            in_name_search = keyword in item['pembeli'].lower()
+
+            if in_date_range and in_name_search:
+                self.current_filtered_data.append(item)
+                current_omset += item['total']
+
+        # Update UI Table
+        self.tampilkan_tabel(self.current_filtered_data)
+        
+        # Update UI Omset
+        self.label_omset.setText(f"Rp {current_omset:,}".replace(",", "."))
 
     def tampilkan_tabel(self, data_list):
-        """Menampilkan list data ke QTableWidget"""
         self.table.setRowCount(0)
         self.table.setRowCount(len(data_list))
         
         for row, item in enumerate(data_list):
-            self.table.setItem(row, 0, QtWidgets.QTableWidgetItem(item['tanggal']))
+            self.table.setItem(row, 0, QtWidgets.QTableWidgetItem(item['display_date']))
             self.table.setItem(row, 1, QtWidgets.QTableWidgetItem(item['pembeli']))
             self.table.setItem(row, 2, QtWidgets.QTableWidgetItem(item['mobil']))
             
-            qty_item = QtWidgets.QTableWidgetItem(str(item['qty']))
-            qty_item.setTextAlignment(QtCore.Qt.AlignCenter)
-            self.table.setItem(row, 3, qty_item)
+            item_qty = QtWidgets.QTableWidgetItem(str(item['qty']))
+            item_qty.setTextAlignment(QtCore.Qt.AlignCenter)
+            self.table.setItem(row, 3, item_qty)
             
-            total_str = f"{item['total']:,}"
-            self.table.setItem(row, 4, QtWidgets.QTableWidgetItem(total_str))
+            rp = f"{item['total']:,}".replace(",", ".")
+            item_total = QtWidgets.QTableWidgetItem(rp)
+            item_total.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+            self.table.setItem(row, 4, item_total)
 
-    def filter_data(self):
-        """Filter data berdasarkan input search (Tanggal / Nama)"""
-        keyword = self.input_search.text().lower()
-        
-        filtered = [
-            d for d in self.data_cache 
-            if keyword in d['tanggal'].lower() or keyword in d['pembeli'].lower()
-        ]
-        
-        self.tampilkan_tabel(filtered)
+    def reset_filter(self):
+        self.input_search.clear()
+        self.date_start.setDate(QDate.currentDate().addDays(-30))
+        self.date_end.setDate(QDate.currentDate())
+
+    # =========================================================
+    #  LOGIC EXPORT EXCEL
+    # =========================================================
+    def export_excel(self):
+        # 1. Cek apakah ada data
+        if not self.current_filtered_data:
+            QtWidgets.QMessageBox.warning(self, "Kosong", "Tidak ada data untuk diexport!")
+            return
+
+        # 2. Buka Dialog Simpan File
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Simpan File Excel", "Laporan_Penjualan.xlsx", "Excel Files (*.xlsx)"
+        )
+
+        if filename:
+            try:
+                # 3. Siapkan Data untuk Pandas
+                # Kita perlu merapikan data agar sesuai kolom Excel yang diinginkan
+                data_export = []
+                for item in self.current_filtered_data:
+                    data_export.append({
+                        "Tanggal Transaksi": item['display_date'],
+                        "Nama Pembeli": item['pembeli'],
+                        "Mobil": item['mobil'],
+                        "Jumlah (Qty)": item['qty'],
+                        "Total Harga": item['total']
+                    })
+
+                # 4. Buat DataFrame & Simpan
+                df = pd.DataFrame(data_export)
+                
+                # Opsional: Hitung total bawah di Excel
+                # df.loc['Total'] = df.sum(numeric_only=True) 
+
+                df.to_excel(filename, index=False)
+
+                QtWidgets.QMessageBox.information(self, "Sukses", f"Data berhasil disimpan ke:\n{filename}")
+                
+            except Exception as e:
+                QtWidgets.QMessageBox.critical(self, "Gagal", f"Terjadi kesalahan saat menyimpan:\n{e}")
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

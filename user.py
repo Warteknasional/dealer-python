@@ -59,7 +59,7 @@ class User:
         if not self.__cursor: return False
         try:
             # Pastikan nama kolom 'posisi' sesuai database kamu
-            sql = "INSERT INTO user (name, username, password, posisi) VALUES (%s, %s, %s, %s)"
+            sql = "INSERT INTO users (name, username, password, posisi) VALUES (%s, %s, %s, %s)"
             val = (self.__name, self.__username, self.__password, self.__posisi)
             self.__cursor.execute(sql, val)
             self.__conn.commit()
@@ -71,7 +71,7 @@ class User:
     # 2. CARI USER BY ID (PENTING UNTUK EDIT!)
     def select_user_by_id(self, user_id):
         if not self.__cursor: return None
-        sql = "SELECT id, name, username, password, posisi FROM user WHERE id=%s"
+        sql = "SELECT id, name, username, password, posisi FROM users WHERE id=%s"
         self.__cursor.execute(sql, (user_id,))
         return self.__cursor.fetchone()
 
@@ -80,10 +80,10 @@ class User:
         if not self.__cursor: return False
         try:
             if self.__password:
-                sql = "UPDATE user SET name=%s, username=%s, password=%s, posisi=%s WHERE id=%s"
+                sql = "UPDATE users SET name=%s, username=%s, password=%s, posisi=%s WHERE id=%s"
                 val = (self.__name, self.__username, self.__password, self.__posisi, user_id)
             else:
-                sql = "UPDATE user SET name=%s, username=%s, posisi=%s WHERE id=%s"
+                sql = "UPDATE users SET name=%s, username=%s, posisi=%s WHERE id=%s"
                 val = (self.__name, self.__username, self.__posisi, user_id)
             
             self.__cursor.execute(sql, val)
@@ -97,7 +97,7 @@ class User:
     def hapus(self, user_id):
         if not self.__cursor: return False
         try:
-            sql = "DELETE FROM user WHERE id=%s"
+            sql = "DELETE FROM users WHERE id=%s"
             self.__cursor.execute(sql, (user_id,))
             self.__conn.commit()
             return True
@@ -107,13 +107,13 @@ class User:
     # 5. SELECT ALL
     def select_all_users(self):
         if not self.__cursor: return []
-        sql = "SELECT id, name, username, posisi FROM user"
+        sql = "SELECT id, name, username, posisi FROM users"
         self.__cursor.execute(sql)
         return self.__cursor.fetchall()
     
     def authenticate(self, username, password):
         if not self.__cursor: return None
-        sql = "SELECT id, name, username, posisi FROM user WHERE username=%s AND password=%s"
+        sql = "SELECT id, name, username, posisi FROM users WHERE username=%s AND password=%s"
         self.__cursor.execute(sql, (username, password))
         return self.__cursor.fetchone()
     
